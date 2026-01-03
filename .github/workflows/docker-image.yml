@@ -84,7 +84,7 @@ jobs:
 
       - name: Configure Docker for Artifact Registry
         run: |
-          gcloud auth configure-docker asia-south1-docker.pkg.dev --quiet
+          gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -99,8 +99,8 @@ jobs:
           file: ./api/Dockerfile
           push: true
           tags: |
-            asia-south1-docker.pkg.dev/project-eb2d0d17-6cbd-42e3-970/app-repo/backend:latest
-            asia-south1-docker.pkg.dev/project-eb2d0d17-6cbd-42e3-970/app-repo/backend:${{ env.IMAGE_TAG }}
+            us-central1-docker.pkg.dev/project-eb2d0d17-6cbd-42e3-970/app-repo/backend:latest
+            us-central1-docker.pkg.dev/project-eb2d0d17-6cbd-42e3-970/app-repo/backend:${{ env.IMAGE_TAG }}
 
   build_frontend_docker_image_and_push:
     runs-on: ubuntu-latest
@@ -118,7 +118,7 @@ jobs:
 
       - name: Configure Docker for Artifact Registry
         run: |
-          gcloud auth configure-docker asia-south1-docker.pkg.dev --quiet
+          gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -133,8 +133,8 @@ jobs:
           file: ./client/Dockerfile
           push: true
           tags: |
-            asia-south1-docker.pkg.dev/project-eb2d0d17-6cbd-42e3-970/app-repo/frontend:latest
-            asia-south1-docker.pkg.dev/project-eb2d0d17-6cbd-42e3-970/app-repo/frontend:${{ env.IMAGE_TAG }}
+            us-central1-docker.pkg.dev/project-eb2d0d17-6cbd-42e3-970/app-repo/frontend:latest
+            us-central1-docker.pkg.dev/project-eb2d0d17-6cbd-42e3-970/app-repo/frontend:${{ env.IMAGE_TAG }}
 
   trivy_image_scan:
     runs-on: ubuntu-latest
@@ -149,7 +149,7 @@ jobs:
         uses: aquasecurity/trivy-action@0.28.0
         with:
           scan-type: image
-          image-ref: asia-south1-docker.pkg.dev/project-eb2d0d17-6cbd-42e3-970/app-repo/backend:${{ env.IMAGE_TAG }}
+          image-ref: us-central1-docker.pkg.dev/project-eb2d0d17-6cbd-42e3-970/app-repo/backend:${{ env.IMAGE_TAG }}
           format: table
           exit-code: '0'
           ignore-unfixed: true
@@ -160,7 +160,7 @@ jobs:
         uses: aquasecurity/trivy-action@0.28.0
         with:
           scan-type: image
-          image-ref: asia-south1-docker.pkg.dev/project-eb2d0d17-6cbd-42e3-970/app-repo/frontend:${{ env.IMAGE_TAG }}
+          image-ref: us-central1-docker.pkg.dev/project-eb2d0d17-6cbd-42e3-970/app-repo/frontend:${{ env.IMAGE_TAG }}
           format: table
           exit-code: '0'
           ignore-unfixed: true
@@ -194,7 +194,7 @@ jobs:
                | .spec.template.spec.containers[]
                | select(.name=="backend")
                | .image)
-            = "asia-south1-docker.pkg.dev/project-eb2d0d17-6cbd-42e3-970/app-repo/backend:" + strenv(IMAGE_TAG)
+            = "us-central1-docker.pkg.dev/project-eb2d0d17-6cbd-42e3-970/app-repo/backend:" + strenv(IMAGE_TAG)
           ' k8s-prod/backend.yaml
 
           yq -i '
@@ -202,7 +202,7 @@ jobs:
                | .spec.template.spec.containers[]
                | select(.name=="frontend")
                | .image)
-            = "asia-south1-docker.pkg.dev/project-eb2d0d17-6cbd-42e3-970/app-repo/frontend:" + strenv(IMAGE_TAG)
+            = "us-central1docker.pkg.dev/project-eb2d0d17-6cbd-42e3-970/app-repo/frontend:" + strenv(IMAGE_TAG)
           ' k8s-prod/frontend.yaml
 
       - name: Commit & push to CD repo
