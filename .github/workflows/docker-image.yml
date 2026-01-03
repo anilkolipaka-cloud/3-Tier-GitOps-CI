@@ -145,6 +145,19 @@ jobs:
       - name: Checkout (noop, keeps workspace consistent)
         uses: actions/checkout@v4
 
+      # 🔐 Authenticate to GCP using OIDC
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+        workload_identity_provider: projects/497573381836/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+        service_account: gh-artifact-writer@project-eb2d0d17-6cbd-42e3-970.iam.gserviceaccount.com
+
+    # 🔐 Allow docker to pull from Artifact Registry
+      - name: Configure Docker for Artifact Registry
+        run: |
+         gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+  
+
       - name: Run Trivy image scan for backend
         uses: aquasecurity/trivy-action@0.28.0
         with:
