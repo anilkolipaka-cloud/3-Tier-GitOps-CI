@@ -7,12 +7,14 @@ on:
     branches: [ main ]
 
 permissions:
-  contents: write   # required to push to CD repo with GITHUB_TOKEN or PAT
+  contents: write
+  id-token: write   # REQUIRED for GCP OIDC authentication
 
 env:
   IMAGE_TAG: ${{ github.sha }}
 
 jobs:
+
   compile:
     runs-on: ubuntu-latest
     steps:
@@ -22,7 +24,7 @@ jobs:
       - name: Set up Node.js (LTS recommended)
         uses: actions/setup-node@v4
         with:
-          node-version: '23'   # use LTS if you don't need v23
+          node-version: '23'
 
       - name: Frontend Compilation (Syntax Check)
         run: |
@@ -73,13 +75,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Login to Artifact Registry
-        uses: docker/login-action@v3
+      # ---- 🔐 Authenticate to GCP using OIDC ----
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
         with:
-          registry: us-central1-docker.pkg.dev
-          username: _json_key
-          password: ${{ secrets.GCP_SA_KEY }}
-          
+          workload_identity_provider: projects/497573381836/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+          service_account: gh-artifact-writer@project-eb2d0d17-6cbd-42e3-970.iam.gserviceaccount.com
+
+      - name: Configure Docker for Artifact Registry
+        run: |
+          gcloud auth configure-docker asia-south1-docker.pkg.dev --quiet
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -94,8 +99,8 @@ jobs:
           file: ./api/Dockerfile
           push: true
           tags: |
-            anil/backend:latest
-            anil/backend:${{ env.IMAGE_TAG }}
+            asia-south1-docker.pkg.dev/project-eb2d0d17-6cbd-42e3-970/app-repo/backend:latest
+            asia-south1-docker.pkg.dev/project-eb2d0d17-6cbd-42e3-970/app-repo/backend:${{ env.IMAGE_TAG }}
 
   build_frontend_docker_image_and_push:
     runs-on: ubuntu-latest
@@ -104,11 +109,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
+      # ---- 🔐 Authenticate to GCP using OIDC ----
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
         with:
-          username: _json_key
-          password: ${{ secrets.GCP_SA_KEY }}
+          workload_identity_provider: projects/497573381836/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+          service_account: gh-artifact-writer@project-eb2d0d17-6cbd-42e3-970.iam.gserviceaccount.com
+
+      - name: Configure Docker for Artifact Registry
+        run: |
+          gcloud auth configure-docker asia-south1-docker.pkg.dev --quiet
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -122,8 +133,8 @@ jobs:
           file: ./client/Dockerfile
           push: true
           tags: |
-            anil/frontend:latest
-            anil/frontend:${{ env.IMAGE_TAG }}
+            asia-south1-docker.pkg.dev/project-eb2d0d17-6cbd-42e3-970/app-repo/frontend:latest
+            asia-south1-docker.pkg.dev/project-eb2d0d17-6cbd-42e3-970/app-repo/frontend:${{ env.IMAGE_TAG }}
 
   trivy_image_scan:
     runs-on: ubuntu-latest
@@ -138,9 +149,9 @@ jobs:
         uses: aquasecurity/trivy-action@0.28.0
         with:
           scan-type: image
-          image-ref: anil/backend:${{ env.IMAGE_TAG }}
+          image-ref: asia-south1-docker.pkg.dev/project-eb2d0d17-6cbd-42e3-970/app-repo/backend:${{ env.IMAGE_TAG }}
           format: table
-          exit-code: '0'                 # set to '1' to fail on vulns
+          exit-code: '0'
           ignore-unfixed: true
           vuln-type: os,library
           severity: CRITICAL,HIGH
@@ -149,7 +160,7 @@ jobs:
         uses: aquasecurity/trivy-action@0.28.0
         with:
           scan-type: image
-          image-ref: anil/frontend:${{ env.IMAGE_TAG }}
+          image-ref: asia-south1-docker.pkg.dev/project-eb2d0d17-6cbd-42e3-970/app-repo/frontend:${{ env.IMAGE_TAG }}
           format: table
           exit-code: '0'
           ignore-unfixed: true
@@ -175,26 +186,23 @@ jobs:
         run: |
           curl -sL https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64 -o yq && sudo install yq /usr/local/bin/yq
 
-          # -- Safety cleanup: remove any accidental .spec.template from Service docs
           yq -i '(. | select(.kind=="Service")) |= del(.spec.template)' k8s-prod/backend.yaml
           yq -i '(. | select(.kind=="Service")) |= del(.spec.template)' k8s-prod/frontend.yaml
 
-          # -- Update ONLY Deployment images (backend)
           yq -i '
             (. | select(.kind=="Deployment")
                | .spec.template.spec.containers[]
                | select(.name=="backend")
                | .image)
-            = "adijaiswal/backend:" + strenv(IMAGE_TAG)
+            = "asia-south1-docker.pkg.dev/project-eb2d0d17-6cbd-42e3-970/app-repo/backend:" + strenv(IMAGE_TAG)
           ' k8s-prod/backend.yaml
 
-          # -- Update ONLY Deployment images (frontend)
           yq -i '
             (. | select(.kind=="Deployment")
                | .spec.template.spec.containers[]
                | select(.name=="frontend")
                | .image)
-            = "adijaiswal/frontend:" + strenv(IMAGE_TAG)
+            = "asia-south1-docker.pkg.dev/project-eb2d0d17-6cbd-42e3-970/app-repo/frontend:" + strenv(IMAGE_TAG)
           ' k8s-prod/frontend.yaml
 
       - name: Commit & push to CD repo
@@ -205,3 +213,4 @@ jobs:
           git add -A
           git commit -m "bump images to ${IMAGE_TAG}" || echo "no changes"
           git push
+
