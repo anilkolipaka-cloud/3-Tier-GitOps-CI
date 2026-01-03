@@ -149,8 +149,8 @@ jobs:
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
         with:
-        workload_identity_provider: projects/497573381836/locations/global/workloadIdentityPools/github-pool/providers/github-provider
-        service_account: gh-artifact-writer@project-eb2d0d17-6cbd-42e3-970.iam.gserviceaccount.com
+          workload_identity_provider: projects/497573381836/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+          service_account: gh-artifact-writer@project-eb2d0d17-6cbd-42e3-970.iam.gserviceaccount.com
 
     # 🔐 Allow docker to pull from Artifact Registry
       - name: Configure Docker for Artifact Registry
